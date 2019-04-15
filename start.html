@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+  <head>
+    <title> Draw.IO </title>
+	<script src="/socket.io/socket.io.js"></script>
+	<script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+	<script type="text/javascript">
+		var socket = io();
+		socket.on("image", function(info) {
+			if (info.image) {
+				var bg = new Image();
+				bg.src = 'data:image/jpeg;base64,' + info.buffer;
+				localStorage.setItem('bg', bg.src);
+			}
+		});
+	</script>
+    <style>
+		html { 
+			background: url(images/bg.jpg) no-repeat center center fixed; 
+			-webkit-background-size: cover;
+			-moz-background-size: cover;
+			-o-background-size: cover;
+			background-size: cover;
+		}
+		.btn-group button{
+			background-color: #DC143C; /* red background */
+			border: 1px solid black; /* black border */
+			color: white; /* White text */
+			padding: 10px 24px; /* Some padding */
+			cursor: pointer; /* Pointer/hand icon */
+			position: absolute;
+			overflow: auto;
+		}
+		
+		#Play{
+			top: 60%;
+			left: 40%;
+		}
+		#Lobbies{
+			top: 60%;
+			right: 40%;
+		}
+		
+		/* Clear floats (clearfix hack) */
+		.btn-group:after {
+			content: "";
+			clear: both;
+			display: table;
+		}
+
+
+
+		/* Add a background color on hover */
+		.btn-group button:hover {
+			background-color: #8B0000;
+		}
+		
+		
+		.inpt-group input{
+			margin: auto;
+			border: 2px solid gray; /* Gray border */
+			color: black; /* Black text */
+			padding: 10px 24px; /* Some padding */
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			/* bring your own prefixes */
+			transform: translate(-50%, -50%);
+
+			}
+		
+    </style>
+  </head>
+  <body>
+
+    <div class="btn-group">
+		<button id = "Play" onclick="getUN()">Play</button>
+		<button id = "Lobbies">Custom Lobby</button>
+	</div>
+	<div class="inpt-group">
+		<br><input type="text" id = "username" name="username" placeholder="Player name"><br>
+	</div>
+	<script type="text/javascript">
+		function getUN() {
+			var username = document.getElementById("username").value;
+			var valid = true;
+			if (username.length > 8 || username.length == 0) {
+				valid = false; // keep form from submitting
+			}
+			if (valid == false){
+				alert("username is too short or longer than 8 characters");
+			}
+			if (valid == true){
+				socket.emit('login', username);
+			}
+		}
+		socket.on('redirect', function(destination) {
+			window.location.replace(destination);
+		});
+		
+	</script>
+
+  </body>
+</html>

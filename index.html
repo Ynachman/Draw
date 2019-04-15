@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Draw.IO</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font: 13px Helvetica, Arial; }
+      form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 35%;}
+      form input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
+      form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
+      #messages { list-style-type: none; margin: 0; padding: 0; width: 35%; height: 80%; overflow: auto; }
+      #messages li { padding: 5px 10px; }/*pad message box*/
+      #messages li:nth-child(odd) { background: #eee; } /* give odd messages white background*/
+	  #canvas { margin: auto; position: fixed; left: 36%; top: 2%; border: 1px solid; }
+    </style>
+  </head>
+  	<script src="/socket.io/socket.io.js"></script>
+	<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+	<script>
+		var socket = io();
+		
+		document.onreadystatechange = function(e)
+		{
+			if (document.readyState === 'complete')
+			{
+				socket.emit('join_game');
+				socket.emit('load_canvas');
+			}
+		};
+		
+		$(function () {
+			$('form').submit(function(){ //emiting messages to server
+				if ($('#m').val() != ''){
+					socket.emit('chat message', $('#m').val());
+					$('#m').val('');
+				}
+				return false;
+			});
+			socket.on('chat message', function(msg){ // appending messages to messages list
+				$('#messages').append($('<li>').text(msg));
+			});
+		});
+		
+		//drawing on canvas
+		var canvas, ctx, canDraw = false, currX = 0, currY = 0, prevX = 0, prevY = 0, strokeColor = "black";
+		var pos = { //pos object includes curr and prev objects which include x and y properties
+			curr: {x:0, y:0},
+			prev: {}
+		};
+		function initiate(){ //access to canvas element
+			canvas = document.getElementById('canvas');
+			if(canvas.getContext){
+				ctx = canvas.getContext('2d');
+				// event listeners that trigger function based on mouse event
+				canvas.addEventListener("mousemove", function (e) {mousexy('move', e)}, false); 
+				canvas.addEventListener("mousedown", function (e) {mousexy('down', e)}, false);
+				canvas.addEventListener("mouseup", function (e) {mousexy('up', e)}, false);
+				canvas.addEventListener("mouseout", function (e) {mousexy('out', e)}, false);
+			}
+		}
+		function mousexy(event, e){
+			if (event =='down'){ 
+				pos.prev.x = pos.curr.x;
+				pos.prev.y = pos.curr.y;
+				pos.curr.x = e.clientX - canvas.offsetLeft; //get x in canvas
+				pos.curr.y = e.clientY - canvas.offsetTop; //get y in canvas
+				canDraw = true;
+			}
+			if(event == 'up' || event == 'out'){
+				canDraw = false;
+			}
+			if(event == 'move'){
+				if(canDraw){
+					pos.prev.x = pos.curr.x;
+					pos.prev.y = pos.curr.y;
+					pos.curr.x = e.clientX - canvas.offsetLeft; //get x in canvas
+					pos.curr.y = e.clientY - canvas.offsetTop; //get y in canvas
+					socket.emit('draw_line', { line: [ pos.curr, pos.prev ], color: strokeColor });
+				}
+			}
+		}
+		socket.on('draw_line', function draw(data) {
+			ctx.beginPath();
+			ctx.strokeStyle = data.color;
+			ctx.lineWidth = 2;
+			if((data.line[0].x != data.line[1].x) && (data.line[0].y != data.line[1].y)){
+				ctx.moveTo(data.line[0].x, data.line[0].y);//start path at cords
+				ctx.lineTo(data.line[1].x, data.line[1].y);//end path for line
+				ctx.stroke(); //draw stroke
+			}
+			else{ //draw square for single click or no mouse movement
+				ctx.fillRect(data.line[0].x, data.line[0].y, 2, 2);
+			}
+			ctx.closePath();
+		});
+		
+		socket.on('clear_canvas', function(){
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+		});
+		
+		//when user leaves page
+		window.onbeforeunload = closingCode;
+		function closingCode(){
+		   socket.emit('kill_session')
+		   return null;
+		}
+
+	
+	</script>
+	<body onload="initiate()">
+		<ul id="messages"></ul>
+		<form action="">
+			<input id="m" autocomplete="off" /><button>Send</button>
+		</form>
+		<!--canvas-->
+		<canvas id="canvas" width=400px height=800px>Your browser doesn't support "canvas".</canvas>
+	</body>
+  
+</html>
