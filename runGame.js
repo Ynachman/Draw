@@ -1,8 +1,8 @@
 const fs = require('fs'); //module for different file system interactions
-var path = require('path');
 var GameLoop;
 var drawingNum = 0;
-var playerNum;
+var wait;
+var revealWord;
 
 try {
 	var words = fs.readFileSync('wordslist.txt', 'utf8').split(","); //read file synchronously to get words before server asks for them
@@ -10,26 +10,27 @@ try {
 		process.send({error: err.message});
 	}
 
-try {
-	process.on('message', function(players){
-		playerNum = players
+	process.on('message', function(msg){
+		try {
 		switchPlayer();
-		GameLoop = setInterval(switchPlayer, 40000); // new player is selected to draw every 40 seconds
-	});
-} catch (err) {
+		GameLoop = setInterval(function(){
+			revealWord = setTimeout(function(){ // leave 5 seconds to reveal word
+				process.send('sendWord');
+			},10000);
+			switchPlayer();
+		}, 15000); // new player is selected to draw every set amount of seconds
+		} catch (err) {
 		process.send({error: err.message});
-	}
+		}
+	});
+
 
 function switchPlayer(){
 	try {
-		if(drawingNum<Number(playerNum)){ // if hasn't iterated over all players
-			process.send(words[Math.floor(Math.random()*words.length)]);
-			process.send(drawingNum + ''); //send next drawing player's num
-			drawingNum++;
-		}
-		else {
-			clearInterval(GameLoop);
-		}
+		process.send(words[Math.floor(Math.random()*words.length)]); //send random word from words
+		process.send(drawingNum + ''); //send next drawing player's num
+		drawingNum++;
+
 	} catch (err) {
 		process.send({error: err.message});
 	}

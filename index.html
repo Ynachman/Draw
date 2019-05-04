@@ -1,30 +1,52 @@
 <!doctype html>
 <html>
   <head>
-    <title>Draw.IO</title>
+    <title>Pictionary.IO</title>
+	<link rel="icon" type="image/x-icon" href="images/favicon.ico">
     <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { font: 13px Helvetica, Arial; }
-      form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 35%;}
-      form input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
-      form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
-      #messages { list-style-type: none; margin: 0; padding: 0; width: 35%; height: 80%; overflow: auto; }
-      #messages li { padding: 5px 10px; }/*pad message box*/
-      #messages li:nth-child(odd) { background: #eee; } /* give odd messages white background*/
-	  #canvas { margin: auto; position: fixed; left: 36%; top: 2%; border: 1px solid; }
+		* { margin: 0; padding: 0; box-sizing: border-box; }
+		body { font: 13px Helvetica, Arial; }
+		form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 35%;}
+		form input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
+		form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
+		#messages { list-style-type: none; margin: 0; padding: 0; width: 35%; }
+		#messages li { padding: 5px 10px; }/*pad message box*/
+		#messages li:nth-child(odd) { background: #eee; } /* give odd messages white background*/
+
+		#canvas { margin: auto; position: fixed; left: 36%; top: 2vh; border: 1px solid; }
+		.DivWithScroll{
+			height: 90vh;
+			overflow: auto;
+			overflow-x:hidden;
+		}
+		.gameInfo{
+			width: 600px;
+			height: 60px;
+			position: fixed; 
+			top: 90vh;
+			left: 36%;
+		}
+		
+		.colorButton{
+			width: 20px;
+			height: 20px;
+			position: absolute;
+		}
+		#currentWord{text-align: right;font: 40px Helvetica, Arial;}
+		#timer{text-align: left;font: 40px Helvetica, Arial;}
     </style>
   </head>
   	<script src="/socket.io/socket.io.js"></script>
 	<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
 	<script>
-		var socket = io();
+		var socket = io(); // io() with no args does auto-discovery
 		
 		document.onreadystatechange = function(e)
 		{
 			if (document.readyState === 'complete')
 			{
 				socket.emit('join_game');
-				socket.emit('load_canvas');
+				setTimeout(function(){ socket.emit('load_canvas'); }, 100); //wait 100 ms to see if session was saved
 			}
 		};
 		
@@ -38,11 +60,15 @@
 			});
 			socket.on('chat message', function(msg){ // appending messages to messages list
 				$('#messages').append($('<li>').text(msg));
+				var scrollbar = document.getElementById("DivWithScroll"); //scroll down on new message
+				scrollbar.scrollTop = scrollbar.scrollHeight;
+
 			});
 		});
 		
 		//drawing on canvas
-		var canvas, ctx, canDraw = false, currX = 0, currY = 0, prevX = 0, prevY = 0, strokeColor = "black";
+		var canvas, ctx, canDraw = false, currX = 0, currY = 0, prevX = 0, prevY = 0,
+		strokeColor = "black", strokeWidth = 2;
 		var pos = { //pos object includes curr and prev objects which include x and y properties
 			curr: {x:0, y:0},
 			prev: {}
@@ -75,27 +101,61 @@
 					pos.prev.y = pos.curr.y;
 					pos.curr.x = e.clientX - canvas.offsetLeft; //get x in canvas
 					pos.curr.y = e.clientY - canvas.offsetTop; //get y in canvas
-					socket.emit('draw_line', { line: [ pos.curr, pos.prev ], color: strokeColor });
+					socket.emit('draw_line', { line: [ pos.curr, pos.prev ],
+					color: strokeColor, width: strokeWidth });
 				}
 			}
 		}
 		socket.on('draw_line', function draw(data) {
 			ctx.beginPath();
 			ctx.strokeStyle = data.color;
-			ctx.lineWidth = 2;
-			if((data.line[0].x != data.line[1].x) && (data.line[0].y != data.line[1].y)){
-				ctx.moveTo(data.line[0].x, data.line[0].y);//start path at cords
-				ctx.lineTo(data.line[1].x, data.line[1].y);//end path for line
-				ctx.stroke(); //draw stroke
-			}
-			else{ //draw square for single click or no mouse movement
-				ctx.fillRect(data.line[0].x, data.line[0].y, 2, 2);
-			}
+			ctx.lineWidth = data.width;
+			ctx.moveTo(data.line[0].x, data.line[0].y);//start path at cords
+			ctx.lineTo(data.line[1].x, data.line[1].y);//end path for line
+			ctx.stroke(); //draw stroke
 			ctx.closePath();
 		});
 		
-		socket.on('clear_canvas', function(){
+		// updating game info
+		socket.on('word', function(data){
+			if (isNaN(data)){ //if player drawing get full word
+				document.getElementById("currentWord").innerHTML = data;
+			}
+			else if (document.getElementById("currentWord").textContent == ' '){ //if guessing, get word length
+				document.getElementById("currentWord").innerHTML = "-".repeat(data);
+			}
+		});
+		
+		var Timer;
+		socket.on('startTimer',function(timeleft){ //updating countdown
+			document.getElementById("currentWord").innerHTML = " ";
+			updateTime(timeleft)
+			Timer = setInterval(function(){ //set round timer
+			timeleft--;
+			updateTime(timeleft);
+			}, 1000);
+		});
+		
+		function updateTime(time){
+			document.getElementById("timer").innerHTML = time;
+				if(time <= 0){
+					clearInterval(Timer);
+					document.getElementById("timer").innerHTML = "0";
+					
+				}
+		}
+		
+		socket.on('clear_canvas', function(){ //clear canvas
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
+		});
+		
+		socket.on('waiting', function(){ // display waiting message
+			ctx.font="30px Comic Sans MS";
+			ctx.fillStyle = "red";
+			ctx.textAlign = "center";
+			ctx.fillText("WAITING FOR PLAYERS", canvas.width/2, canvas.height/2);
+			clearInterval(Timer);
+			document.getElementById("timer").innerHTML = "0";
 		});
 		
 		//when user leaves page
@@ -104,16 +164,63 @@
 		   socket.emit('kill_session')
 		   return null;
 		}
+		socket.on('redirect', function(destination) { //for refreshing if server was closed
+			window.location.replace(destination);
+		});
+		
+		function color(buttonColor){
+			switch (buttonColor.id) { //for parameter in switch
+				case "green": //if is case for parameter, change strokeColor and break
+					strokeColor = "green";
+					break;
+				case "blue":
+					strokeColor = "blue";
+					break;
+				case "red":
+					strokeColor = "red";
+					break;
+				case "yellow":
+					strokeColor = "yellow";
+					break;
+				case "orange":
+					strokeColor = "orange";
+					break;
+				case "black":
+					strokeColor = "black";
+					break;
+				case "white":
+					strokeColor = "white";
+					break;
+			}
+		}
+		
+		function clearBoard(){
+			socket.emit('eraseAll');
+		}
 
 	
 	</script>
 	<body onload="initiate()">
-		<ul id="messages"></ul>
+		<div class="DivWithScroll">
+			<ul id="messages"></ul>
+		</div>
 		<form action="">
 			<input id="m" autocomplete="off" /><button>Send</button>
 		</form>
 		<!--canvas-->
-		<canvas id="canvas" width=400px height=800px>Your browser doesn't support "canvas".</canvas>
+		<canvas id="canvas" width=600px height=800px>Your browser doesn't support "canvas".</canvas>
+		<div class="gameInfo">
+			<div id="timer">0</div>
+			<div id="currentWord"> </div>
+				<div class = "colorButton" style="top:20%;left:40%;background:green;" id="green" onclick="color(this)"></div>
+				<div class = "colorButton" style="top:20%;left:45%;background:blue;" id="blue" onclick="color(this)"></div>
+				<div class = "colorButton" style="top:20%;left:50%;background:red;" id="red" onclick="color(this)"></div>
+				<div class = "colorButton" style="top:60%;left:40%;background:yellow;" id="yellow" onclick="color(this)"></div>
+				<div class = "colorButton" style="top:60%;left:45%;background:orange;" id="orange" onclick="color(this)"></div>
+				<div class = "colorButton" style="top:60%;left:50%;background:black;" id="black" onclick="color(this)"></div>
+				<div class = "colorButton" style="top:40%;left:35%;background:white;border:1px solid;" id="white" onclick="color(this)"></div>
+				<div class = "colorButton" style="top:40%;left:55%;width:40px;background:white;border:1px solid;" id="clear" onclick="clearBoard()"><b>clear</b></div>
+		</div>
 	</body>
   
 </html>

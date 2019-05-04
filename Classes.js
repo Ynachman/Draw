@@ -1,9 +1,10 @@
 class Player {
-	constructor(IP, name, points,cur_game) {
-		this.IP = IP;
+	constructor(ID, name, points,cur_game, mute) {
+		this.ID = ID;
 		this.name = name;
 		this.points = points;
 		this.cur_game = cur_game;
+		this.mute = mute;
 	}
 }
 
@@ -16,6 +17,7 @@ class Lobby {
 		this.pdrawing = "";
 		this.theword = "";
 		this.gameProcess;
+		this.pass = "";
 	}
 }
 module.exports = {Player, Lobby};

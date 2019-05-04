@@ -1,7 +1,8 @@
 <!doctype html>
 <html>
   <head>
-    <title> Draw.IO </title>
+    <title>Pictionary.IO</title>
+	<link rel="icon" type="image/x-icon" href="images/favicon.ico">
 	<script src="/socket.io/socket.io.js"></script>
 	<script src="http://code.jquery.com/jquery-1.11.1.js"></script>
 	<script type="text/javascript">
@@ -48,13 +49,10 @@
 			display: table;
 		}
 
-
-
 		/* Add a background color on hover */
 		.btn-group button:hover {
 			background-color: #8B0000;
 		}
-		
 		
 		.inpt-group input{
 			margin: auto;
@@ -64,11 +62,17 @@
 			position: absolute;
 			top: 50%;
 			left: 50%;
-			/* bring your own prefixes */
 			transform: translate(-50%, -50%);
-
-			}
+		}
 		
+		.center{
+			width:50%;
+			margin:0 auto;
+			position:absolute;top:80%;left:50%;margin-left:-25%;
+		}
+		
+		#rules {background-color:black;color:white;padding:20px;
+			text-align:center;}
     </style>
   </head>
   <body>
@@ -79,6 +83,9 @@
 	</div>
 	<div class="inpt-group">
 		<br><input type="text" id = "username" name="username" placeholder="Player name"><br>
+	</div>
+	<div class="center">
+		<p id="rules">Rules are simple. Guess the word which is being drawn. Get points for guessing correctly. Player with most points at the end wins!</p>
 	</div>
 	<script type="text/javascript">
 		function getUN() {
